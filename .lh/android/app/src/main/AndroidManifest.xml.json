@@ -1,0 +1,38 @@
+{
+    "sourceFile": "android/app/src/main/AndroidManifest.xml",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 5,
+            "patches": [
+                {
+                    "date": 1787153428725,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1787560546093,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,11 +1,12 @@\n <manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n     <uses-permission android:name=\"android.permission.READ_PHONE_STATE\" />\n-<uses-permission android:name=\"android.permission.READ_CALL_LOG\" />\n+    <uses-permission android:name=\"android.permission.READ_CALL_LOG\" />\n     <application\n         android:label=\"call_listener_app\"\n         android:name=\"${applicationName}\"\n-        android:icon=\"@mipmap/ic_launcher\">\n+        android:icon=\"@mipmap/launcher_icon\">\n+        android:usesCleartextTraffic=\"true\">\n         <activity\n             android:name=\".MainActivity\"\n             android:exported=\"true\"\n             android:launchMode=\"singleTop\"\n"
+                },
+                {
+                    "date": 1787560552582,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -3,9 +3,9 @@\n     <uses-permission android:name=\"android.permission.READ_CALL_LOG\" />\n     <application\n         android:label=\"call_listener_app\"\n         android:name=\"${applicationName}\"\n-        android:icon=\"@mipmap/launcher_icon\">\n+        android:icon=\"@mipmap/launcher_icon\"\n         android:usesCleartextTraffic=\"true\">\n         <activity\n             android:name=\".MainActivity\"\n             android:exported=\"true\"\n"
+                },
+                {
+                    "date": 1787565620051,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,7 +1,10 @@\n <manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n     <uses-permission android:name=\"android.permission.READ_PHONE_STATE\" />\n     <uses-permission android:name=\"android.permission.READ_CALL_LOG\" />\n+    <uses-permission android:name=\"android.permission.INTERNET\" />\n+<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n+<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\" />\n     <application\n         android:label=\"call_listener_app\"\n         android:name=\"${applicationName}\"\n         android:icon=\"@mipmap/launcher_icon\"\n"
+                },
+                {
+                    "date": 1787565625444,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,10 +1,10 @@\n <manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n     <uses-permission android:name=\"android.permission.READ_PHONE_STATE\" />\n     <uses-permission android:name=\"android.permission.READ_CALL_LOG\" />\n     <uses-permission android:name=\"android.permission.INTERNET\" />\n-<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n-<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\" />\n+    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n+    <uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\" />\n     <application\n         android:label=\"call_listener_app\"\n         android:name=\"${applicationName}\"\n         android:icon=\"@mipmap/launcher_icon\"\n"
+                },
+                {
+                    "date": 1787565878609,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -3,8 +3,9 @@\n     <uses-permission android:name=\"android.permission.READ_CALL_LOG\" />\n     <uses-permission android:name=\"android.permission.INTERNET\" />\n     <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n     <uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\" />\n+    <uses-permission android:name=\"android.permission.CHANGE_WIFI_MULTICAST_STATE\" />\n     <application\n         android:label=\"call_listener_app\"\n         android:name=\"${applicationName}\"\n         android:icon=\"@mipmap/launcher_icon\"\n"
+                }
+            ],
+            "date": 1787153428725,
+            "name": "Commit-0",
+            "content": "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    <uses-permission android:name=\"android.permission.READ_PHONE_STATE\" />\n<uses-permission android:name=\"android.permission.READ_CALL_LOG\" />\n    <application\n        android:label=\"call_listener_app\"\n        android:name=\"${applicationName}\"\n        android:icon=\"@mipmap/ic_launcher\">\n        <activity\n            android:name=\".MainActivity\"\n            android:exported=\"true\"\n            android:launchMode=\"singleTop\"\n            android:taskAffinity=\"\"\n            android:theme=\"@style/LaunchTheme\"\n            android:configChanges=\"orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode\"\n            android:hardwareAccelerated=\"true\"\n            android:windowSoftInputMode=\"adjustResize\">\n            <!-- Specifies an Android theme to apply to this Activity as soon as\n                 the Android process has started. This theme is visible to the user\n                 while the Flutter UI initializes. After that, this theme continues\n                 to determine the Window background behind the Flutter UI. -->\n            <meta-data\n              android:name=\"io.flutter.embedding.android.NormalTheme\"\n              android:resource=\"@style/NormalTheme\"\n              />\n            <intent-filter>\n                <action android:name=\"android.intent.action.MAIN\"/>\n                <category android:name=\"android.intent.category.LAUNCHER\"/>\n            </intent-filter>\n        </activity>\n        <!-- Don't delete the meta-data below.\n             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->\n        <meta-data\n            android:name=\"flutterEmbedding\"\n            android:value=\"2\" />\n    </application>\n    <!-- Required to query activities that can process text, see:\n         https://developer.android.com/training/package-visibility and\n         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.\n\n         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->\n    <queries>\n        <intent>\n            <action android:name=\"android.intent.action.PROCESS_TEXT\"/>\n            <data android:mimeType=\"text/plain\"/>\n        </intent>\n    </queries>\n</manifest>\n"
+        }
+    ]
+}
