@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:phone_state/phone_state.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,10 +10,38 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Инициализируем фоновый сервис при старте приложения
+  await initializeService();
   runApp(const MyApp());
+}
+
+Future<void> showFullScreenAlert() async {
+  const AndroidNotificationDetails androidPlatformChannelSpecifics =
+      AndroidNotificationDetails(
+    'dzvonyk_alarm_channel',
+    'Дзвоник Тревога',
+    channelDescription: 'Полноэкранные уведомления о вызове',
+    importance: Importance.max,
+    priority: Priority.high,
+    fullScreenIntent: true,
+    category: AndroidNotificationCategory.call,
+  );
+
+  const NotificationDetails platformChannelSpecifics =
+      NotificationDetails(android: androidPlatformChannelSpecifics);
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  await flutterLocalNotificationsPlugin.show(
+    id: 0,
+    title: 'Внимание!',
+    body: 'Сигнал от устройства Forest Stone!',
+    notificationDetails: platformChannelSpecifics,
+  );
 }
 
 Future<void> requestBatteryOptimization() async {
@@ -25,12 +54,11 @@ Future<void> requestBatteryOptimization() async {
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
 
-  // Настройка уведомления, которое будет висеть в шторке
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'dzvonyk_foreground', // id
-    'Dzvonyk Background Service', // title
-    description: 'Підтримує зв,язок з пристроєм Дзвоник',
-    importance: Importance.low, // чтобы не пиликало при каждом обновлении
+    'dzvonyk_foreground',
+    'Dzvonyk Background Service',
+    description: "Підтримує зв'язок з пристроєм Дзвоник",
+    importance: Importance.low,
   );
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -51,6 +79,7 @@ Future<void> initializeService() async {
       initialNotificationContent: 'Підключення до плати активне',
       foregroundServiceNotificationId: 888,
     ),
+
     iosConfiguration: IosConfiguration(
       autoStart: true,
       onForeground: onStart,
@@ -66,9 +95,6 @@ Future<void> initializeService() async {
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
 
-  // Здесь инициализируется FlutterBluePlus и ваш код подключения к плате.
-  // Даже когда пользователь свернет приложение, этот код продолжит крутиться.
-  
   service.on('stopService').listen((event) {
     service.stopSelf();
   });
@@ -77,8 +103,8 @@ void onStart(ServiceInstance service) async {
     service.setAsForegroundService();
   }
 
-  Timer.periodic(const Duration(seconds: 5), (timer) async {
-    // Тут можно проверять статус соединения с платой и обновлять уведомление в трее
+  // Фоновый пульс для удержания службы активной
+  Timer.periodic(const Duration(seconds: 10), (timer) async {
     if (service is AndroidServiceInstance) {
       if (await service.isForegroundService()) {
         service.setForegroundNotificationInfo(
@@ -195,6 +221,9 @@ class _CallListenerPageState extends State<CallListenerPage> {
       Permission.bluetoothConnect,
       Permission.location,
     ].request();
+
+    // Запрос на игнорирование оптимизации батареи для стабильности фона
+    await requestBatteryOptimization();
 
     setState(() {
       _status = "Шукаємо ESP32 в ефірі...";
@@ -337,15 +366,12 @@ class _CallListenerPageState extends State<CallListenerPage> {
     }
   }
 
-  // Запуск пошукового сигналу в телефоні (вікно + гучний звук)
   void _triggerPhoneAlarm() async {
     if (!mounted) return;
 
-    // 1. Примусово викручуємо системну гучність будильника на максимум
     await FlutterVolumeController.setAndroidAudioStream(stream: AudioStream.alarm);
-    await FlutterVolumeController.setVolume(0.1);
+    await FlutterVolumeController.setVolume(0.2); // Увеличено до 1.0 для реальной тревоги
 
-    // 2. Запускаємо відтворення звуку (можна вказати URL або файл з assets)
     try {
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
       await _audioPlayer.play(AssetSource('media/alarm.mp3'));
@@ -353,7 +379,6 @@ class _CallListenerPageState extends State<CallListenerPage> {
       print("Помилка відтворення звуку: $e");
     }
 
-    // 3. Показуємо червоне вікно на екрані
     if (!mounted) return;
     showDialog(
       context: context,
@@ -378,7 +403,6 @@ class _CallListenerPageState extends State<CallListenerPage> {
   }
 
   void _stopPhoneAlarm() {
-    // Зупиняємо звук
     _audioPlayer.stop();
 
     if (Navigator.canPop(context)) {
