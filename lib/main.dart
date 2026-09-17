@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_volume_controller/flutter_volume_controller.dart';
+
+// Глобальний ключ для виклику попапа з будь-якого місця
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   runApp(const MyApp());
@@ -14,6 +19,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Дзвоник',
       theme: ThemeData(
         useMaterial3: true,
@@ -42,6 +48,10 @@ class _CallListenerPageState extends State<CallListenerPage> {
   bool _isScanning = false;
   StreamSubscription<List<ScanResult>>? _scanSubscription;
 
+  // Змінні для керування сигналізацією та аудіо
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isAlarmActive = false;
+
   @override
   void initState() {
     super.initState();
@@ -52,12 +62,29 @@ class _CallListenerPageState extends State<CallListenerPage> {
     await _requestPermissions();
     await _loadSavedMacs();
     _startAndroidService(); // Автозапуск фонового сервісу
+    
+    // Слухач команд від нативного фонового сервісу (коли плата надсилає find:start / find:stop)
+    platform.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case "triggerAlarmUI":
+          print("🚨 Отримано команду на запуск тривоги з нативного сервісу!");
+          triggerPhoneAlarm();
+          break;
+        case "stopAlarmUI":
+          print("🔕 Отримано команду на зупинку тривоги з нативного сервісу!");
+          stopPhoneAlarm();
+          break;
+        default:
+          print("⚠️ Невідомий метод від сервісу: ${call.method}");
+      }
+    });
   }
 
   @override
   void dispose() {
     _scanSubscription?.cancel();
     FlutterBluePlus.stopScan();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -67,6 +94,7 @@ class _CallListenerPageState extends State<CallListenerPage> {
       Permission.location,
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
+      Permission.ignoreBatteryOptimizations,
     ].request();
 
     if (statuses[Permission.location]?.isGranted ?? false) {
@@ -95,7 +123,6 @@ class _CallListenerPageState extends State<CallListenerPage> {
       _isScanning = true;
     });
 
-    // Підписуємося на результати сканування
     _scanSubscription = FlutterBluePlus.scanResults.listen((results) {
       setState(() {
         _scanResults = results;
@@ -103,7 +130,6 @@ class _CallListenerPageState extends State<CallListenerPage> {
     });
 
     try {
-      // Запускаємо сканування на 5 секунд
       await FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
     } catch (e) {
       print("❌ Помилка сканування: $e");
@@ -118,7 +144,7 @@ class _CallListenerPageState extends State<CallListenerPage> {
   Future<void> _saveMac(String mac) async {
     try {
       await platform.invokeMethod('saveMacAddress', {'mac': mac});
-      await _loadSavedMacs(); // Оновлюємо список на екрані
+      await _loadSavedMacs();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('✅ Збережено плату: $mac')),
@@ -151,6 +177,74 @@ class _CallListenerPageState extends State<CallListenerPage> {
       print("🚀 Команда на запуск нативного сервісу відправлена");
     } on PlatformException catch (e) {
       print("⚠️ Помилка запуску сервісу: ${e.message}");
+    }
+  }
+
+  // ==========================================
+  // ЛОГІКА ТРИВОГИ ТА ПОПАПА
+  // ==========================================
+
+  void triggerPhoneAlarm() async {
+    if (_isAlarmActive) return;
+    _isAlarmActive = true;
+
+    try {
+      await FlutterVolumeController.setAndroidAudioStream(stream: AudioStream.alarm);
+      await FlutterVolumeController.setVolume(0.1);
+    } catch (e) {
+      print("⚠️ Помилка налаштування гучності: $e");
+    }
+
+    try {
+      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer.play(AssetSource('media/alarm.mp3'));
+    } catch (e) {
+      print("❌ Помилка відтворення звуку: $e");
+    }
+
+    if (!mounted) return;
+    showDialog(
+      context: navigatorKey.currentContext ?? context,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          backgroundColor: Colors.red.shade900,
+          title: const Text(
+            "🚨 ТЕЛЕФОН ШУКАЮТЬ!", 
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+          ),
+          content: const Text(
+            "Натиснута кнопка на платі «Дзвоник»!\nГучність викручено на максимум.", 
+            style: TextStyle(color: Colors.white70, fontSize: 16)
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white, 
+                  foregroundColor: Colors.red.shade900,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: () {
+                  stopPhoneAlarm();
+                },
+                child: const Text("Знайшли! Зупинити", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void stopPhoneAlarm() {
+    _audioPlayer.stop();
+    _isAlarmActive = false;
+    
+    if (navigatorKey.currentState?.canPop() ?? false) {
+      navigatorKey.currentState?.pop();
     }
   }
 
@@ -232,7 +326,7 @@ class _CallListenerPageState extends State<CallListenerPage> {
                       itemBuilder: (context, index) {
                         final r = _scanResults[index];
                         final deviceName = r.device.platformName.isNotEmpty ? r.device.platformName : "Невідомий пристрій";
-                        final deviceMac = r.device.remoteId.str; // MAC-адреса
+                        final deviceMac = r.device.remoteId.str;
 
                         return Card(
                           child: ListTile(

@@ -19,7 +19,12 @@ class MainActivity: FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         Log.i(TAG, "🔧 [MAIN] Налаштування FlutterEngine та MethodChannel ('$CHANNEL')...")
         
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        
+        // ВАЖЛИВО: Передаємо канал у сервіс, щоб звідти можна було викликати UI (сирену/попап)
+        DzvonykService.flutterMethodChannel = channel
+
+        channel.setMethodCallHandler { call, result ->
             Log.i(TAG, "📥 [CHANNEL] Отримано виклик з Dart: method='${call.method}'")
             
             when (call.method) {
@@ -87,5 +92,12 @@ class MainActivity: FlutterActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "💥 [SERVICE] Помилка запуску сервісу з MainActivity: ${e.message}", e)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Очищаємо посилання на канал при знищенні активітності, щоб уникнути витоків пам'яті
+        DzvonykService.flutterMethodChannel = null
+        Log.i(TAG, "🧹 [MAIN] MainActivity знищено, посилання на MethodChannel очищено")
     }
 }

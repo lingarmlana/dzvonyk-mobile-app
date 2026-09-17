@@ -25,10 +25,12 @@ class DzvonykService : Service() {
 
         private val SERVICE_UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
         private val CHAR_UUID = UUID.fromString("BEB5483E-36E1-4688-B7F5-EA07361B26AA")
-        private val CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb") // Descriptor для нотифікацій
+        private val CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+
+        // Статичний міст для передачі подій у Flutter UI (MethodChannel з MainActivity)
+        var flutterMethodChannel: io.flutter.plugin.common.MethodChannel? = null
     }
 
-    // Зберігаємо стан для кожного підключеного пристрою окремо за його MAC-адресою
     private class DeviceHolder(
         val mac: String,
         var bluetoothGatt: BluetoothGatt? = null,
@@ -57,17 +59,13 @@ class DzvonykService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification("Підключення до плат..."))
 
-        // Реєстрація ресивера дзвінків
         val filter = IntentFilter("com.example.dzvonyk.ACTION_CALL_EVENT")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(callReceiver, filter, RECEIVER_NOT_EXPORTED)
-            Log.i(TAG, "📡 [RECEIVER] Зареєстровано callReceiver (TIRAMISU+ / NOT_EXPORTED)")
         } else {
             registerReceiver(callReceiver, filter)
-            Log.i(TAG, "📡 [RECEIVER] Зареєстровано callReceiver (стандартний)")
         }
 
-        // Підключаємося до всіх збережених плат при старті сервісу
         connectAllSavedDevices()
     }
 
@@ -173,16 +171,28 @@ class DzvonykService : Service() {
             override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
                 val value = characteristic.value
                 if (value != null && value.isNotEmpty()) {
-                    val incomingString = String(value, Charsets.UTF_8)
+                    val incomingString = String(value, Charsets.UTF_8).trim()
                     Log.i(TAG, "📥 [BLE READ] Від ${holder.mac}: '$incomingString'")
+
+                    // ГОЛОВНЕ: Перехоплюємо команди від плати та штовхаємо у Flutter UI
+                    handler.post {
+                        when {
+                            incomingString.contains("find:start") -> {
+                                Log.i(TAG, "🚨 Сигнал ТРИВОГИ від плати! Активуємо Flutter UI.")
+                                flutterMethodChannel?.invokeMethod("triggerAlarmUI", null)
+                            }
+                            incomingString.contains("find:stop") -> {
+                                Log.i(TAG, "🔕 Сигнал СТОП від плати! Вимикаємо Flutter UI.")
+                                flutterMethodChannel?.invokeMethod("stopAlarmUI", null)
+                            }
+                        }
+                    }
                 }
             }
 
             override fun onCharacteristicWrite(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?, status: Int) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     Log.i(TAG, "👍 [BLE WRITE] Плата ${holder.mac} підтвердила приймання")
-                } else {
-                    Log.w(TAG, "⚠️ [BLE WRITE] Помилка запису для ${holder.mac}, статус: $status")
                 }
             }
         }, BluetoothDevice.TRANSPORT_LE)
@@ -195,7 +205,6 @@ class DzvonykService : Service() {
             Log.i(TAG, "🎉 [GATT] Плата ${holder.mac} повністю готова до роботи!")
             updateNotificationActiveStatus()
 
-            // Виконуємо відкладені команди, якщо вони були в черзі
             if (pendingCommandsQueue.isNotEmpty()) {
                 val cmd = pendingCommandsQueue.removeAt(0)
                 val parts = cmd.split(":")
@@ -219,7 +228,7 @@ class DzvonykService : Service() {
             } catch (e: Exception) {
                 Log.e(TAG, "❌ [GATT] Помилка повторного підключення до ${holder.mac}: ${e.message}")
             }
-        }, 5000) // Повторна спроба через 5 секунд
+        }, 5000)
     }
 
     private fun closeGatt(holder: DeviceHolder) {
